@@ -5,7 +5,7 @@
 
 #game-board > table
 {
-  font-size: 2.2em;
+  font-size: 5vmin;
   margin: 0 auto;
 }
 
@@ -22,18 +22,19 @@
   border: 1px solid #ccc;
   padding: 0;
   margin: 0;
-  width: 2em;
-  height: 2em;
+  width: 10vmin;
+  height: 10vmin;
   line-height: 0;
   text-align: center;
 }
 .cell > div
 {
   display: inline-block;
-  border-radius: 1em;
-  margin: 0.25em;
-  width: 1.5em;
-  height: 1.5em;
+  border-radius: 4vmin;
+  margin: 1vmin;
+  width: 8vmin;
+  height: 8vmin;
+  line-height: 8vmin;
 }
 /*#game-board > table .cell[color=white] > div
 {

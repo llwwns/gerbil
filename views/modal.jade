@@ -1,0 +1,9 @@
+mixin modal(title)
+  .modal.fade(tabindex='-1', role='dialog', aria-labelledby='myModalLabel', aria-hidden='true', id!=attributes.id, class!=attributes.class)
+    .modal-dialog
+      .modal-content
+        .modal-header
+          button.close(type='button', data-dismiss='modal', aria-label='Close')
+            span(aria-hidden='true') &times;
+          h4#myModalLabel.modal-title= title
+        block
