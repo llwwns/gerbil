@@ -9,7 +9,7 @@ var Board = require('../public/js/othello/board.js').Board;
 var board = new Board(color_black);
 
 var move = function(socket, data) {
-    console.log('move #', JSON.stringify(data));
+    //console.log('move #', JSON.stringify(data));
     board.board = data.board;
     board.turn = data.turn;
     var row = data.row;
@@ -150,8 +150,8 @@ exports.connect = function(nsp) {
             });
         });
         socket.on('move', function(data){
-            if (!data || !typeof(data) === 'object' || !Number.isInteger(data['row']) || !Number.isInteger(data['col']) || !data['board'] || !Number.isInteger(data['turn'])) {
-                socket.emit('_error', 'move error');
+            if (!data || !typeof(data) === 'object' || typeof data['row'] != "number" || typeof data['col'] != "number" || !data['board'] || typeof data['turn'] != "number") {
+                socket.emit('_error', 'move error' + typeof data['col']);
             }
             move(socket, data);
         });
