@@ -9,7 +9,9 @@ game_status = {
 }
 
 var showCell = function(bk, $e) {
-    $e.css('background', bk).css('transform', 'rotateY(90deg)').transition({
+    $e.css('background', bk).transition({
+        rotateY: '90deg'
+    }, 0).transition({
         rotateY: '0'
     }, 300);
 };
