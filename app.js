@@ -11,9 +11,11 @@ var othello = require('./routes/othello');
 var app = express();
 
 global.redis = require("redis");
-if (process.env.OPENSHIFT_REDIS_DB_PORT) {
-    global.client = redis.createClient(process.env.OPENSHIFT_REDIS_DB_PORT,
-    process.env.OPENSHIFT_REDIS_DB_HOST, {auth_pass: process.env.OPENSHIFT_REDIS_DB_PASSWORD});
+var redis_config = process.env.rediscloud_5e8ad;
+if (redis_config) {
+    redis_config = JSON.parse(redis_config);
+    global.client = redis.createClient(redis_config.port,
+    redis_config.hostname, {auth_pass: redis_config.password});
 } else {
     global.client = redis.createClient();
 }
