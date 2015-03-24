@@ -49,7 +49,13 @@ var new_game = function(socket, id) {
                 global.client.set('game_status#' + id, 'waiting', 'EX', waiting_expire, callback);
             },
             function(callback) {
-                global.client.set('play_info#' + id, JSON.stringify({color: color, nickname: nickname}), 'EX', waiting_expire, callback);
+                global.client.set('play_info#' + id, JSON.stringify({color: color, nickname: nickname}), 'EX', waiting_expire + game_expire, callback);
+            },
+            function(callback) {
+                global.client.del('move_log#' + id, callback);
+            },
+            function(callback) {
+                global.client.del('game_members#' + id, callback);
             }
         ], function(err, results) {
             socket.join(id);
@@ -80,9 +86,6 @@ var join_game = function(socket, id, room) {
             },
             function(callback) {
                 global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', waiting_expire, callback);
-            },
-            function(callback) {
-                global.client.del('move_log#' + room, callback);
             }
         ], function(err, results) {
             socket.join(room);
@@ -130,7 +133,7 @@ var reconnect = function(socket, id, room) {
         },
     ], function(err, results) {
         if (err || !results[1] || !results[2]) {
-            socket.emit('_error', 'cannot restart last game.');
+            new_game(socket, id);
             return;
         }
         var info = JSON.parse(results[1]);

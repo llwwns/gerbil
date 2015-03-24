@@ -28,7 +28,7 @@ function Game() {
 };
 var size = 8;
 Game.prototype.drawGameBoard = function() {
-    $('#game-board').html('');
+    this.deleteGameBoard();
     var html = '<table><tr><th></th>';
     html += 'abcdefgh'.replace(/(.)/g, '<th>$1</th>');
     html += '</tr>';
@@ -64,6 +64,9 @@ Game.prototype.drawGameBoard = function() {
         }
     });
 };
+Game.prototype.deleteGameBoard = function() {
+    $('#game-board').html('');
+}
 Game.prototype.show = function(row, col, clr) {
     var bk = (clr == colors.black) ? '#000' : '#fff'; 
     showCell(bk, this.$cell_array[row][col]);
@@ -102,7 +105,7 @@ Game.prototype.clearLeagleGirds = function() {
     }
 };
 Game.prototype.newGame = function() {
-    $('#newGameButton').show();
+    //$('#newGameButton').show();
     $('#newGame').modal('show');
 };
 Game.prototype.joinGame = function() {
@@ -110,12 +113,13 @@ Game.prototype.joinGame = function() {
     $('#joinGame').modal('show');
 };
 Game.prototype.wait = function(id) {
+    this.deleteGameBoard();
     $('#wait_info').show();
     $('#wait_info>.well').text(location.host + '/othello/' + id);
     $('#wait_info>.qrcode').html('').qrcode({"width" : 300, "height" : 300, "text" : $('#wait_info>.well').text()});
 };
 Game.prototype.start = function(color) {
-    $('#newGameButton').hide();
+    //$('#newGameButton').hide();
     $('#joinGameButton').hide();
     $('#wait_info').hide();
     this.enable = true;
@@ -161,7 +165,8 @@ Game.prototype.move = function(data) {
 Game.prototype.reconnect = function(data) {
     var info = data.info;
     var log = data.log;
-    $('#newGameButton').hide();
+    if (!info) return;
+    //$('#newGameButton').hide();
     $('#joinGameButton').hide();
     $('#wait_info').hide();
     this.enable = true;
@@ -177,7 +182,7 @@ Game.prototype.reconnect = function(data) {
     this.showLeagleGirds();
 };
 $(function(){
-    $('#newGameButton').hide();
+    //$('#newGameButton').hide();
     $('#joinGameButton').hide();
     $('#wait_info').hide();
     var game = new Game();
@@ -197,8 +202,11 @@ $(function(){
             return;
         }
         connection.newGameSend(color, nickname);
-        $('#newGameButton').hide();
+        //$('#newGameButton').hide();
         $newGame.modal('hide');
+    });
+    $('#newGameButton').click(function() {
+        connection.newGame();
     });
     var $joinGame = $('#joinGame');
     $joinGame.find('.btn-primary').click(function() {

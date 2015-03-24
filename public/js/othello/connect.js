@@ -9,25 +9,27 @@ Connection.prototype.connect = function(game) {
     socket.on('id', function(data) {
         var id = $.cookie('othello#id');
         if (!id) {
-            id = data;
+            id = socket.data;
             $.cookie('othello#id', id);
         }
         this.id = id;
-        var room = $.cookie('othello#room');
-        if (room) {
-            socket.emit('info', {
-                id: id,
-                room: room
-            });
-        } else if (typeof join_id !== 'undefined' && join_id) {
+        if (typeof join_id !== 'undefined' && join_id) {
             socket.emit('info', {
                 id: id,
                 room: join_id
             });
         } else {
-            socket.emit('info', {
-                id: id
-            });
+            var room = $.cookie('othello#room');
+            if (room) {
+                socket.emit('info', {
+                    id: id,
+                    room: room
+                });
+            } else {
+                socket.emit('info', {
+                    id: id
+                });
+            }
         }
     });
     socket.on('new_game', function(data) {
@@ -48,8 +50,20 @@ Connection.prototype.connect = function(game) {
         game.move(data);
     });
     socket.on('reconnect', function(data) {
-        game.reconnect(data);
+        if (data) {
+            game.reconnect(data);
+        }
     });
+};
+Connection.prototype.newGame = function() {
+    if (!this.socket.id) {
+        alert('error');
+    } else {
+        var socket = this.socket;
+        socket.emit('info', {
+            id: socket.id
+        });
+    }
 };
 Connection.prototype.newGameSend = function(color, nickname) {
     var socket = this.socket;
