@@ -14,9 +14,11 @@ var othello_socket = require('../socket/othello');
  */
 
 var port = normalizePort(process.env.OPENSHIFT_NODEJS_PORT || '3000');
-var ipaddr = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
 app.set('port', port);
-app.set('ipaddr', ipaddr);
+var ipaddr = process.env.OPENSHIFT_NODEJS_IP || false;
+if (ipaddr) {
+    app.set('ipaddr', ipaddr);
+}
 
 /**
  * Create HTTP server.
