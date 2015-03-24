@@ -35,15 +35,20 @@ Connection.prototype.connect = function(game) {
     });
     socket.on('join_game', function(data) {
         game.joinGame();
+        $.cookie('othello#room', data);
     });
     socket.on('wait', function() {
         game.wait(this.id);
+        $.cookie('othello#room', this.id);
     });
     socket.on('start', function(data) {
         game.start(data[this.id]);
     });
     socket.on('move', function(data) {
         game.move(data);
+    });
+    socket.on('reconnect', function(data) {
+        game.reconnect(data);
     });
 };
 Connection.prototype.newGameSend = function(color, nickname) {

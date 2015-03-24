@@ -18,7 +18,17 @@ var move = function(socket, data) {
         socket.emit('_error', 'error move');
     } else {
         console.log('send move to #' + socket.rooms[socket.rooms.length - 1]);
-        io.to(socket.rooms[socket.rooms.length - 1]).emit('move', data);
+        var room = socket.rooms[socket.rooms.length - 1];
+        io.to(room).emit('move', data);
+        async.series([
+            function(callback) {
+                global.client.rpush('move_log#' + room, JSON.stringify([row, col]), callback);
+            },
+            function(callback) {
+                global.client.expire('move_log#' + room, game_expire);
+            }
+        ], function(err, results) {
+        });
     }
 }
 
@@ -50,7 +60,7 @@ var new_game = function(socket, id) {
 
 var join_game = function(socket, id, room) {
     console.log('join game #' + id + '# #' + room);
-    socket.emit('join_game');
+    socket.emit('join_game', room);
     socket.on('join_game', function(data) {
         if (!data || !typeof(data) === 'object' || !data['nickname']) {
             socket.emit('_error', 'error join game.');
@@ -70,6 +80,9 @@ var join_game = function(socket, id, room) {
             },
             function(callback) {
                 global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', waiting_expire, callback);
+            },
+            function(callback) {
+                global.client.del('move_log#' + room, callback);
             }
         ], function(err, results) {
             socket.join(room);
@@ -88,7 +101,7 @@ var join_game = function(socket, id, room) {
 
 var reconnect = function(socket, id, room) {
     console.log('reconnect #' + id + '# #' + room);
-    global.client.get('game_member#' + id, function(err, member) {
+    global.client.get('game_members#' + room, function(err, member) {
         var members = JSON.parse(member);
         if (!members || !members.length) {
             socket.emit('_error', 'room not exist');
@@ -101,11 +114,32 @@ var reconnect = function(socket, id, room) {
             }
         }
         if (!is_member) {
-            socket.emit('_error', 'not member of room');
+            socket.emit('_error', 'room is full');
             return;
         }
     });
-    // sync
+    async.series([
+        function(callback) {
+            global.client.lrange('move_log#' + room, 0, -1, callback);
+        },
+        function(callback) {
+            global.client.get('play_info#' + id, callback);
+        },
+        function(callback) {
+            global.client.get('play_info#' + room, callback);
+        },
+    ], function(err, results) {
+        if (err || !results[1] || !results[2]) {
+            socket.emit('_error', 'cannot restart last game.');
+            return;
+        }
+        var info = JSON.parse(results[1]);
+        if (!info.color) {
+            info.color = 3 - JSON.parse(results[2]).color;
+        }
+        socket.join(room);
+        socket.emit('reconnect', {info: info, log: results[0]});
+    });
 }
 
 exports.connect = function(nsp) {
@@ -142,7 +176,11 @@ exports.connect = function(nsp) {
                     new_game(socket, id);
                 } else if (game === 'waiting') {
                     // join game
-                    join_game(socket, id, room);
+                    if (id == room) {
+                        new_game(socket, id);
+                    } else {
+                        join_game(socket, id, room);
+                    }
                 } else if (game === 'playing') {
                     // reconnect
                     reconnect(socket, id, room);

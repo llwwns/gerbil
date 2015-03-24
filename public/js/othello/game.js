@@ -158,6 +158,24 @@ Game.prototype.move = function(data) {
         }
     }
 };
+Game.prototype.reconnect = function(data) {
+    var info = data.info;
+    var log = data.log;
+    $('#newGameButton').hide();
+    $('#joinGameButton').hide();
+    $('#wait_info').hide();
+    this.enable = true;
+    this.drawGameBoard();
+    var board = new Board(info.color);
+    if (log && log.length) {
+        for (var i = 0; i < log.length; i++) {
+            var move = JSON.parse(log[i]);
+            board.put(move[0], move[1]);
+        }
+    }
+    this.setBoard(board);
+    this.showLeagleGirds();
+};
 $(function(){
     $('#newGameButton').hide();
     $('#joinGameButton').hide();
