@@ -9,7 +9,7 @@ Connection.prototype.connect = function(game) {
     socket.on('id', function(data) {
         var id = $.cookie('othello#id');
         if (!id) {
-            id = socket.data;
+            id = data;
             $.cookie('othello#id', id);
         }
         this.id = id;
