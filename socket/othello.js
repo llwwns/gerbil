@@ -1,10 +1,11 @@
 var game_expire = 19200; // second
 var waiting_expire = 600; // second
 var async = require('async');
+var generate_room_number = require('../utility').generate_room_number;
 var io;
 var color_white = 1;
 var color_black = 2;
-var Board = require('../public/js/othello/board.js').Board;
+var Board = require('../public/js/othello/board').Board;
 
 var board = new Board(color_black);
 
@@ -43,23 +44,27 @@ var new_game = function(socket, id) {
         var color = parseInt(data.color);
         if (!color) color = color_black;
         var nickname = data.nickname;
+        var room = generate_room_number();
         console.log('new game with ' + JSON.stringify(data));
         async.series([
             function(callback) {
-                global.client.set('game_status#' + id, 'waiting', 'EX', waiting_expire, callback);
+                global.client.set('game_status#' + room, 'waiting', 'EX', waiting_expire, callback);
             },
             function(callback) {
                 global.client.set('play_info#' + id, JSON.stringify({color: color, nickname: nickname}), 'EX', waiting_expire + game_expire, callback);
             },
             function(callback) {
-                global.client.del('move_log#' + id, callback);
+                global.client.set('game_info#' + room, JSON.stringify({id: id, color: color, nickname: nickname}), 'EX', waiting_expire + game_expire, callback);
             },
             function(callback) {
-                global.client.del('game_members#' + id, callback);
+                global.client.del('move_log#' + room, callback);
+            },
+            function(callback) {
+                global.client.del('game_members#' + room, callback);
             }
         ], function(err, results) {
-            socket.join(id);
-            socket.emit('wait');
+            socket.join(room);
+            socket.emit('wait', room);
         });
     });
 }
@@ -79,25 +84,26 @@ var join_game = function(socket, id, room) {
                 global.client.set('game_status#' + room, 'playing', 'EX', game_expire, callback);
             },
             function(callback) {
-                global.client.set('game_members#' + room, JSON.stringify([id, room]), 'EX', game_expire, callback);
-            },
-            function(callback) {
-                global.client.get('play_info#' + room, callback);
+                global.client.get('game_info#' + room, callback);
             },
             function(callback) {
                 global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', waiting_expire, callback);
             }
         ], function(err, results) {
             socket.join(room);
-            var info = JSON.parse(results[2]);
-            console.log(JSON.stringify(results[2]));
+            var info = JSON.parse(results[1]);
+            if (info.id == id) {
+                socket.emit('_error', 'cannot join self game.');
+                return;
+            }
             var color = parseInt(info.color);
             if (!color) color = color_black;
             var color_data = {};
-            color_data[room] = color;
+            color_data[info.id] = color;
             color_data[id] = 3 - color;
             console.log('game start #' + room + '# #' + JSON.stringify(color_data));
             io.to(room).emit('start', color_data);
+            global.client.set('game_members#' + room, JSON.stringify([info.id, id]), 'EX', game_expire, function(err, result){});
         });
     });
 }
@@ -105,6 +111,7 @@ var join_game = function(socket, id, room) {
 var reconnect = function(socket, id, room) {
     console.log('reconnect #' + id + '# #' + room);
     global.client.get('game_members#' + room, function(err, member) {
+        console.log(member);
         var members = JSON.parse(member);
         if (!members || !members.length) {
             socket.emit('_error', 'room not exist');
@@ -129,7 +136,7 @@ var reconnect = function(socket, id, room) {
             global.client.get('play_info#' + id, callback);
         },
         function(callback) {
-            global.client.get('play_info#' + room, callback);
+            global.client.get('game_info#' + room, callback);
         },
     ], function(err, results) {
         if (err || !results[1] || !results[2]) {
@@ -137,9 +144,8 @@ var reconnect = function(socket, id, room) {
             return;
         }
         var info = JSON.parse(results[1]);
-        if (!info.color) {
-            info.color = 3 - JSON.parse(results[2]).color;
-        }
+        var game_info = JSON.parse(results[2]);
+        info.color = (game_info.id == id) ? game_info.color : (3 - game_info.color);
         socket.join(room);
         socket.emit('reconnect', {info: info, log: results[0]});
     });

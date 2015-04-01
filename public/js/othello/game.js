@@ -119,7 +119,7 @@ Game.prototype.joinGame = function() {
 Game.prototype.wait = function(id) {
     this.deleteGameBoard();
     $('#wait_info').show();
-    $('#wait_info>.well').text(location.host + '/othello/' + id);
+    $('#wait_info>.well').text('http://' + location.host + '/othello/' + id);
     $('#wait_info>.qrcode').html('').qrcode({"width" : 300, "height" : 300, "text" : $('#wait_info>.well').text()});
 };
 Game.prototype.start = function(color) {
@@ -178,6 +178,7 @@ Game.prototype.reconnect = function(data) {
     this.enable = true;
     this.drawGameBoard();
     var board = new Board(info.color);
+    alert(info.color);
     if (log && log.length) {
         for (var i = 0; i < log.length; i++) {
             var move = JSON.parse(log[i]);

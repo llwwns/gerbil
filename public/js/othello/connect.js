@@ -39,9 +39,9 @@ Connection.prototype.connect = function(game) {
         game.joinGame();
         $.cookie('othello#room', data);
     });
-    socket.on('wait', function() {
-        game.wait(this.id);
-        $.cookie('othello#room', this.id);
+    socket.on('wait', function(data) {
+        game.wait(data);
+        $.cookie('othello#room', data);
     });
     socket.on('start', function(data) {
         game.start(data[this.id]);
