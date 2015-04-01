@@ -196,5 +196,13 @@ exports.connect = function(nsp) {
             }
             move(socket, data);
         });
+        socket.on('chat', function(data){
+            if (!data || !typeof(data) === 'object' || !data.message || data.message.length > 256) {
+                socket.emit('_error', 'chat send error');
+            }
+            var room = socket.rooms[socket.rooms.length - 1];
+            console.log('message send#', JSON.stringify(data));
+            io.to(room).emit('chat', data);
+        });
     });
 };

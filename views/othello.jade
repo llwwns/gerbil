@@ -4,6 +4,7 @@ block head
   script(src='http://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js')
   script(src='http://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js')
   script(src='http://cdnjs.cloudflare.com/ajax/libs/jquery.transit/0.9.12/jquery.transit.min.js')
+  script(src='http://cdnjs.cloudflare.com/ajax/libs/knockout/3.3.0/knockout-min.js')
   script(src='/socket.io/socket.io.js')
   script(src='/js/othello/board.js')
   script(src='/js/othello/connect.js')
@@ -22,31 +23,31 @@ block content
       | Join Game
 
     +modal('New Game')(id='newGame')
-      .modal-body
-        form
+      form(data-bind='submit: newGameSend')
+        .modal-body
           label.control-label(for='nickname') Nickname:
-          input#nickname.form-control(type='text', name='nickname')
-          label.control-label(for='nickname') Choose your color:
+          input#nickname.form-control(type='text', name='nickname', data-bind='textInput: nickname')
+          label.control-label(for='color') Choose your color:
           .radio
             label
-              input#color_black(type='radio', name='color', value='2', checked='')
+              input#color_black(type='radio', name='color', value='2' data-bind='checked: color')
               |  Black
           .radio
             label
-              input#color_white(type='radio', name='color', value='1')
+              input#color_white(type='radio', name='color', value='1' data-bind='checked: color')
               | White
-      .modal-footer
-        button.btn.btn-default(type='button', data-dismiss='modal') Close
-        button.btn.btn-primary(type='button') Submit
+        .modal-footer
+          button.btn.btn-default(type='button', data-dismiss='modal') Close
+          input.btn.btn-primary(type='submit', value='Submit')
 
     +modal('Join Game')(id='joinGame')
-      .modal-body
-        form
+      form(data-bind='submit: joinGameSend')
+        .modal-body
           label.control-label(for='nickname') Nickname:
-          input#nickname.form-control(type='text', name='nickname')
-      .modal-footer
-        button.btn.btn-default(type='button', data-dismiss='modal') Close
-        button.btn.btn-primary(type='button') Submit
+          input#nickname.form-control(type='text', name='nickname', data-bind='textInput: nickname')
+        .modal-footer
+          button.btn.btn-default(type='button', data-dismiss='modal') Close
+          button.btn.btn-primary(type='submit') Submit
 
     +modal('Pass')(id='pass')
       .modal-body
@@ -77,4 +78,16 @@ block content
       .well
       .qrcode
       
-    #game-board
+    #game-board.col-md-8
+    #chat.col-md-4
+      form(data-bind='submit: chatSend')
+        div.input-group
+          input.form-control(type='text', name='nickname' data-bind='textInput: message')
+          span.input-group-btn
+            input.btn.btn-default(type='submit', value='Send')
+      .list-group(data-bind='template: {name: "msgTemplate", foreach: messages}')
+  script(type='text/html' id='msgTemplate')
+    .list-group-item
+      strong(data-bind='text: name')
+      br/
+      p(data-bind='text: message')

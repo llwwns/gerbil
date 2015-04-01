@@ -49,6 +49,9 @@ Connection.prototype.connect = function(game) {
     socket.on('move', function(data) {
         game.move(data);
     });
+    socket.on('chat', function(data) {
+        game.chat(data);
+    });
     socket.on('reconnect', function(data) {
         if (data) {
             game.reconnect(data);
@@ -81,4 +84,8 @@ Connection.prototype.moveSend = function(board, turn, row, col) {
         row: row,
         col: col
     });
+};
+Connection.prototype.chatSend = function(message) {
+    var socket = this.socket;
+    socket.emit('chat', message);
 };

@@ -25,6 +25,10 @@ var getFormObj = function(form) {
 }
 function Game() {
     $('#game-board').html('');
+    this.messages = ko.observableArray([]);
+    this.nickname = ko.observable('');
+    this.message = ko.observable('');
+    this.color = ko.observable('2');
 };
 var size = 8;
 Game.prototype.drawGameBoard = function() {
@@ -127,6 +131,7 @@ Game.prototype.start = function(color) {
     var board = new Board(color);
     this.setBoard(board);
     this.showLeagleGirds();
+    $('#chat').show();
 };
 Game.prototype.createMove = function(row, col) {
     this.connection.moveSend(this.board.board, this.board.turn, row, col);
@@ -169,6 +174,7 @@ Game.prototype.reconnect = function(data) {
     //$('#newGameButton').hide();
     $('#joinGameButton').hide();
     $('#wait_info').hide();
+    this.nickname(info.nickname);
     this.enable = true;
     this.drawGameBoard();
     var board = new Board(info.color);
@@ -180,10 +186,52 @@ Game.prototype.reconnect = function(data) {
     }
     this.setBoard(board);
     this.showLeagleGirds();
+    $('#chat').show();
+};
+Game.prototype.newGameSend = function(e) {
+    var nickname = this.nickname();
+    var color = this.color();
+    if (!nickname || nickname.length > 64) {
+        alert('nickname is empty or too long.');
+        return false;
+    }
+    this.connection.newGameSend(color, nickname);
+    //$('#newGameButton').hide();
+    $('#newGame').modal('hide');
+    return false;
+};
+Game.prototype.joinGameSend = function(e) {
+    var nickname = this.nickname();
+    if (!nickname || nickname.length > 64) {
+        alert('nickname is empty or too long.');
+        return false;
+    }
+    this.connection.joinGameSend(nickname);
+    $('#joinGameButton').hide();
+    $('#joinGame').modal('hide');
+    return false;
+};
+Game.prototype.chatSend = function(e) {
+    var message = this.message();
+    var nickname = this.nickname();
+    this.message('');
+    if (!message || message.length > 256) {
+        alert('message is empty or too long.');
+        return false;
+    }
+    this.connection.chatSend({
+        name: nickname,
+        message: message
+    });
+    return false;
+};
+Game.prototype.chat = function(msg) {
+    this.messages.unshift(msg);
 };
 $(function(){
     //$('#newGameButton').hide();
     $('#joinGameButton').hide();
+    $('#chat').hide();
     $('#wait_info').hide();
     var game = new Game();
     var connection = new Connection();
@@ -192,32 +240,8 @@ $(function(){
     $('#pass').on('hide.bs.modal', function(e) {
         game.createMove(-1, -1);
     });
-    var $newGame = $('#newGame');
-    $newGame.find('.btn-primary').click(function() {
-        var obj = getFormObj($newGame.find('form'));
-        var nickname = obj.nickname;
-        var color = obj.color;
-        if (!nickname || nickname.length > 64) {
-            alert('nickname is empty or too long.');
-            return;
-        }
-        connection.newGameSend(color, nickname);
-        //$('#newGameButton').hide();
-        $newGame.modal('hide');
-    });
     $('#newGameButton').click(function() {
         connection.newGame();
     });
-    var $joinGame = $('#joinGame');
-    $joinGame.find('.btn-primary').click(function() {
-        var obj = getFormObj($joinGame.find('form'));
-        var nickname = obj.nickname;
-        if (!nickname || nickname.length > 64) {
-            alert('nickname is empty or too long.');
-            return;
-        }
-        connection.joinGameSend(nickname);
-        $('#joinGameButton').hide();
-        $joinGame.modal('hide');
-    });
+    ko.applyBindings(game);
 });

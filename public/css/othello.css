@@ -36,6 +36,11 @@
   height: 8vmin;
   line-height: 8vmin;
 }
+#msg
+{
+  overflow: auto;
+  height: 80vmin;
+}
 /*#game-board > table .cell[color=white] > div
 {
   background: #fff;
