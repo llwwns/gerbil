@@ -87,7 +87,7 @@ var join_game = function(socket, id, room) {
                 global.client.get('game_info#' + room, callback);
             },
             function(callback) {
-                global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', waiting_expire, callback);
+                global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', game_expire, callback);
             }
         ], function(err, results) {
             socket.join(room);
