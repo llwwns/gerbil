@@ -68,7 +68,7 @@ const join_game = (socket, id, room) => {
             socket.emit('_error', 'error join game.');
             return;
         }
-        var nickname = data.nickname;
+        let nickname = data.nickname;
         console.log('join game with ' + JSON.stringify(data));
         co(function*() {
             yield [global.client.setAsync('game_status#' + room, 'playing', 'EX', game_expire),
@@ -94,7 +94,7 @@ const join_game = (socket, id, room) => {
     });
 }
 
-var reconnect = (socket, id, room) => {
+const reconnect = (socket, id, room) => {
     console.log('reconnect #' + id + '# #' + room);
     co(function*() {
         let members = JSON.parse(yield client.getAsync('game_members#' + room));
@@ -102,8 +102,8 @@ var reconnect = (socket, id, room) => {
             socket.emit('_error', 'room not exist');
             return;
         }
-        var is_member = false;
-        for (var i = 0; i < members.length; i++) {
+        let is_member = false;
+        for (let i = 0; i < members.length; i++) {
             if (members[i] == id) {
                 is_member = true;
             }
@@ -138,13 +138,13 @@ exports.connect = (nsp) => {
                 socket.emit('_error', 'info is empty');
                 return;
             }
-            var id = info['id'];
+            let id = info['id'];
             if (!info['room']) {
                 //none
                 new_game(socket, id);
                 return;
             }
-            var room = info['room'];
+            let room = info['room'];
             co(function*() {
                 let game = yield global.client.getAsync('game_status#' + room);
                 console.log(game);
