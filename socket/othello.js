@@ -1,118 +1,103 @@
-var game_expire = 19200; // second
-var waiting_expire = 600; // second
-var async = require('async');
-var generate_room_number = require('../utility').generate_room_number;
-var io;
-var color_white = 1;
-var color_black = 2;
-var Board = require('../public/js/othello/board').Board;
+const game_expire = 19200; // second
+const waiting_expire = 600; // second
+const generate_room_number = require('../utility').generate_room_number;
+const co = require("co")
+let io;
+const color_white = 1;
+const color_black = 2;
+const Board = require('../public/js/othello/board').Board;
 
-var board = new Board(color_black);
+let board = new Board(color_black);
 
-var move = function(socket, data) {
+const move = (socket, data) => {
     //console.log('move #', JSON.stringify(data));
     board.board = data.board;
     board.turn = data.turn;
-    var row = data.row;
-    var col = data.col;
+    let row = data.row;
+    let col = data.col;
     if (row >= 0 && col >=0 && !board.check(row, col)) {
         socket.emit('_error', 'error move');
     } else {
-        console.log('send move to #' + socket.rooms[socket.rooms.length - 1]);
-        var room = socket.rooms[socket.rooms.length - 1];
+        let rooms = Object.keys(socket.rooms).map((k) => socket.rooms[k]);
+        console.log('send move to #' + rooms[rooms.length - 1]);
+        let room = rooms[rooms.length - 1];
         io.to(room).emit('move', data);
-        async.series([
-            function(callback) {
-                global.client.rpush('move_log#' + room, JSON.stringify([row, col]), callback);
-            },
-            function(callback) {
-                global.client.expire('move_log#' + room, game_expire);
-            }
-        ], function(err, results) {
+        co(function*() {
+            yield [global.client.rpushAsync('move_log#' + room, JSON.stringify([row, col])),
+                global.client.expireAsync('move_log#' + room, game_expire)];
+        }).catch((err) => {
+            console.log(err);
+            socket.emit('_error', JSON.stringify(err));
         });
     }
-}
+};
 
-var new_game = function(socket, id) {
+const new_game = (socket, id) => {
     console.log('new_game #' + id);
     socket.emit('new_game');
-    socket.on('new_game', function(data) {
+    socket.on('new_game', (data) => {
         if (!data || !typeof(data) === 'object' || !data['color'] || !data['nickname']) {
             socket.emit('_error', 'error start new game.');
             return;
         }
-        var color = parseInt(data.color);
+        let color = parseInt(data.color);
         if (!color) color = color_black;
-        var nickname = data.nickname;
-        var room = generate_room_number();
+        let nickname = data.nickname;
+        let room = generate_room_number();
         console.log('new game with ' + JSON.stringify(data));
-        async.series([
-            function(callback) {
-                global.client.set('game_status#' + room, 'waiting', 'EX', waiting_expire, callback);
-            },
-            function(callback) {
-                global.client.set('play_info#' + id, JSON.stringify({color: color, nickname: nickname}), 'EX', waiting_expire + game_expire, callback);
-            },
-            function(callback) {
-                global.client.set('game_info#' + room, JSON.stringify({id: id, color: color, nickname: nickname}), 'EX', waiting_expire + game_expire, callback);
-            },
-            function(callback) {
-                global.client.del('move_log#' + room, callback);
-            },
-            function(callback) {
-                global.client.del('game_members#' + room, callback);
-            }
-        ], function(err, results) {
+        co(function*(){
+            yield [global.client.setAsync('game_status#' + room, 'waiting', 'EX', waiting_expire)
+                ,global.client.setAsync('play_info#' + id, JSON.stringify({color: color, nickname: nickname}), 'EX', waiting_expire + game_expire)
+                ,global.client.setAsync('game_info#' + room, JSON.stringify({id: id, color: color, nickname: nickname}), 'EX', waiting_expire + game_expire)
+                ,global.client.delAsync('move_log#' + room)
+                ,global.client.delAsync('game_members#' + room)];
+        }).then(() => {
             socket.join(room);
             socket.emit('wait', room);
+        }).catch((err) => {
+            console.log(err);
         });
     });
-}
+};
 
-var join_game = function(socket, id, room) {
+const join_game = (socket, id, room) => {
     console.log('join game #' + id + '# #' + room);
     socket.emit('join_game', room);
-    socket.on('join_game', function(data) {
+    socket.on('join_game', (data) => {
         if (!data || !typeof(data) === 'object' || !data['nickname']) {
             socket.emit('_error', 'error join game.');
             return;
         }
         var nickname = data.nickname;
         console.log('join game with ' + JSON.stringify(data));
-        async.series([
-            function(callback) {
-                global.client.set('game_status#' + room, 'playing', 'EX', game_expire, callback);
-            },
-            function(callback) {
-                global.client.get('game_info#' + room, callback);
-            },
-            function(callback) {
-                global.client.set('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', game_expire, callback);
-            }
-        ], function(err, results) {
+        co(function*() {
+            yield [global.client.setAsync('game_status#' + room, 'playing', 'EX', game_expire),
+                global.client.setAsync('play_info#' + id, JSON.stringify({nickname: nickname}), 'EX', game_expire)];
+            let game_info = yield global.client.getAsync('game_info#' + room);
             socket.join(room);
-            var info = JSON.parse(results[1]);
+            let info = JSON.parse(game_info);
             if (info.id == id) {
                 socket.emit('_error', 'cannot join self game.');
                 return;
             }
-            var color = parseInt(info.color);
+            let color = parseInt(info.color);
             if (!color) color = color_black;
-            var color_data = {};
+            let color_data = {};
             color_data[info.id] = color;
             color_data[id] = 3 - color;
             console.log('game start #' + room + '# #' + JSON.stringify(color_data));
             io.to(room).emit('start', color_data);
-            global.client.set('game_members#' + room, JSON.stringify([info.id, id]), 'EX', game_expire, function(err, result){});
+            global.client.set('game_members#' + room, JSON.stringify([info.id, id]), 'EX', game_expire);
+        }).catch((err) => {
+            console.log(err);
         });
     });
 }
 
-var reconnect = function(socket, id, room) {
+var reconnect = (socket, id, room) => {
     console.log('reconnect #' + id + '# #' + room);
-    global.client.get('game_members#' + room, function(err, member) {
-        console.log(member);
-        var members = JSON.parse(member);
+    co(function*() {
+        let members = JSON.parse(yield client.getAsync('game_members#' + room));
         if (!members || !members.length) {
             socket.emit('_error', 'room not exist');
             return;
@@ -127,39 +112,27 @@ var reconnect = function(socket, id, room) {
             socket.emit('_error', 'room is full');
             return;
         }
-    });
-    async.series([
-        function(callback) {
-            global.client.lrange('move_log#' + room, 0, -1, callback);
-        },
-        function(callback) {
-            global.client.get('play_info#' + id, callback);
-        },
-        function(callback) {
-            global.client.get('game_info#' + room, callback);
-        },
-    ], function(err, results) {
-        if (err || !results[1] || !results[2]) {
-            new_game(socket, id);
-            return;
-        }
-        var info = JSON.parse(results[1]);
-        var game_info = JSON.parse(results[2]);
+        let logs = yield global.client.lrangeAsync('move_log#' + room, 0, -1);
+        let info = JSON.parse(yield global.client.getAsync('play_info#' + id));
+        let game_info = JSON.parse(yield global.client.getAsync('game_info#' + room));
         info.color = (game_info.id == id) ? game_info.color : (3 - game_info.color);
         socket.join(room);
-        socket.emit('reconnect', {info: info, log: results[0]});
+        socket.emit('reconnect', {info: info, log: logs});
+    }).catch((err) => {
+        console.log(err);
+        new_game(socket, id);
     });
 }
 
-exports.connect = function(nsp) {
+exports.connect = (nsp) => {
     io = nsp;
-    nsp.on('connection', function(socket) {
+    nsp.on('connection', (socket) => {
         console.log('#' + socket.id + ' connect');
         socket.emit('id', socket.id);
-        socket.on('disconnect', function() {
+        socket.on('disconnect', () => {
             console.log('#' + socket.id + ' disconnect');
         });
-        socket.on('info', function(info) {
+        socket.on('info', (info) => {
             console.log('info #' + JSON.stringify(info));
             if (!info || !info['id']) {
                 socket.emit('_error', 'info is empty');
@@ -172,11 +145,8 @@ exports.connect = function(nsp) {
                 return;
             }
             var room = info['room'];
-            global.client.get('game_status#' + room, function(err, game) {
-                if (err) {
-                    socket.emit('_error', 'data error');
-                    return;
-                }
+            co(function*() {
+                let game = yield global.client.getAsync('game_status#' + room);
                 console.log(game);
                 if (!game) {
                     //none
@@ -194,19 +164,23 @@ exports.connect = function(nsp) {
                     // reconnect
                     reconnect(socket, id, room);
                 }
+            }).catch((err) => {
+                socket.emit('_error', 'data error');
+                return;
             });
         });
-        socket.on('move', function(data){
+        socket.on('move', (data) => {
             if (!data || !typeof(data) === 'object' || typeof data['row'] != "number" || typeof data['col'] != "number" || !data['board'] || typeof data['turn'] != "number") {
                 socket.emit('_error', 'move error' + typeof data['col']);
             }
             move(socket, data);
         });
-        socket.on('chat', function(data){
+        socket.on('chat', (data) => {
             if (!data || !typeof(data) === 'object' || !data.message || data.message.length > 256) {
                 socket.emit('_error', 'chat send error');
             }
-            var room = socket.rooms[socket.rooms.length - 1];
+            let rooms = Object.keys(socket.rooms).map((k) => socket.rooms[k]);
+            let room = rooms[rooms.length - 1];
             console.log('message send#', JSON.stringify(data));
             io.to(room).emit('chat', data);
         });

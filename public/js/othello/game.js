@@ -178,7 +178,6 @@ Game.prototype.reconnect = function(data) {
     this.enable = true;
     this.drawGameBoard();
     var board = new Board(info.color);
-    alert(info.color);
     if (log && log.length) {
         for (var i = 0; i < log.length; i++) {
             var move = JSON.parse(log[i]);
